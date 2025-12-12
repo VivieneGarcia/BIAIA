@@ -40,7 +40,7 @@
 |-----------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | **Frontend**          | [![React][react]][react-url] [![Next.js][next]][next-url] [![TypeScript][ts]][ts-url] [![Tailwind][tailwind]][tailwind-url]                                   |
 | **Backend & Database**| [![Next.js API Routes][api]][api-url] [![Supabase][supabase]][supabase-url]                                                                                |
-| **APIs**              | [![Gemini AI][gemini]][gemini-url] [![Foursquare API][foursquare]][foursquare-url] [![Mapbox][mapbox]][mapbox-url]             |
+| **APIs**              | [![Gemini AI][gemini]][gemini-url] [![Foursquare API][foursquare]][foursquare-url] [![Mapbox][mapbox]][mapbox-url] [![HuggingFace][hf]][hf-url]             |
 | **Version Control & Deployment** | [![GitHub][github]][github-url] [![Vercel][vercel]][vercel-url] |
 | **Project Management**         | [![Trello][trello]][trello-url] |
 
@@ -195,6 +195,9 @@ Visit [https://biaia.vercel.app/](https://biaia.vercel.app/) or follow the insta
 
 [github]: https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white
 [github-url]: https://github.com/VivieneGarcia/BIAIA
+
+[hf]: https://img.shields.io/badge/HuggingFace-FFCC00?style=for-the-badge&logo=huggingface&logoColor=black
+[hf-url]: https://huggingface.co/j-hartmann/emotion-english-distilroberta-base
 
 [trello]: https://img.shields.io/badge/Trello-0052CC?style=for-the-badge&logo=trello&logoColor=white
 [trello-url]: https://trello.com/
