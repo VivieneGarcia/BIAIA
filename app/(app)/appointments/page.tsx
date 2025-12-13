@@ -84,17 +84,17 @@ export default function AppointmentsPage() {
   const [suggestions, setSuggestions] = useState<{ place_name: string }[]>([])
   const [isFetchingSuggestions, setIsFetchingSuggestions] = useState(false)
   const [selectedCategories, setSelectedCategories] = useState<string[]>([
-    "15039", // Default: OB-GYN
+    "63be6904847c3692a84b9bd1", // Default: OB-GYN
   ])
 
   const categoryOptions = [
-    { id: "15039", name: "Obstetrician Gynecologist (Ob-gyn)" },
-    { id: "15056", name: "Women's Health Clinic" },
-    { id: "15014", name: "Hospital" },
-    { id: "15059", name: "Hospital Unit" },
-    { id: "15008", name: "Emergency Service" },
-    { id: "15015", name: "Maternity Clinic" },
-    { id: "15019", name: "Mental Health Clinic" },
+    { id: "63be6904847c3692a84b9bd1", name: "Obstetrician Gynecologist (Ob-gyn)" },
+    { id: "63be6904847c3692a84b9bdf", name: "Women's Health Clinic" },
+    { id: "4bf58dd8d48988d196941735", name: "Hospital" },
+    { id: "58daa1558bbb0b01f18ec1f7", name: "Hospital Unit" },
+    { id: "63be6904847c3692a84b9bbc", name: "Emergency Service" },
+    { id: "56aa371be4b08b9a8d5734ff", name: "Maternity Clinic" },
+    { id: "63be6904847c3692a84b9bc1", name: "Mental Health Clinic" },
   ]
 
   const handleDateSelect = (selected: Date | undefined) => {
@@ -345,84 +345,105 @@ export default function AppointmentsPage() {
   }
 
   const searchOBGYNClinics = async () => {
-    setIsSearching(true)
-    setError(null)
-    setClinics([])
-    setSuggestions([]) // This hides the dropdown
+  console.log("🚀 searchOBGYNClinics triggered")
 
-    try {
-      // Step 1: Geocode with Mapbox
-      const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || ""
-      const geoResponse = await fetch(
-        `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(locationInput)}.json?access_token=${mapboxToken}`,
-      )
+  setIsSearching(true)
+  setError(null)
+  setClinics([])
+  setSuggestions([])
 
-      if (!geoResponse.ok) {
-        throw new Error("Failed to geocode location")
-      }
+  try {
+    console.log("📍 Location input:", locationInput)
 
-      const geoData = await geoResponse.json()
-      const coordinates = geoData.features?.[0]?.center
+    // Step 1: Geocode with Mapbox
+    const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || ""
+    const geoResponse = await fetch(
+      `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(
+        locationInput
+      )}.json?access_token=${mapboxToken}`
+    )
 
-      if (!coordinates) {
-        throw new Error("Location not found")
-      }
+    console.log("🗺️ Mapbox response status:", geoResponse.status)
 
-      const [longitude, latitude] = coordinates
-      // Include both OBGYN and hospital category IDs
-      const categories = selectedCategories.join(",")
-      const radius = 5000 // 5km
-      const limit = 10
+    if (!geoResponse.ok) {
+      throw new Error("Failed to geocode location")
+    }
 
-      // Step 2: Search with Foursquare using lat/lng
-      const foursquareKey = process.env.NEXT_PUBLIC_FOURSQUARE_API_KEY || ""
-      const searchResponse = await fetch(
-        `https://api.foursquare.com/v3/places/search?ll=${latitude},${longitude}&categories=${categories}&radius=${radius}&limit=${limit}`,
-        {
-          headers: {
-            Authorization: foursquareKey,
-            Accept: "application/json",
-          },
-        },
-      )
+    const geoData = await geoResponse.json()
+    console.log("🗺️ Mapbox data:", geoData)
 
-      if (!searchResponse.ok) {
-        throw new Error("Failed to search for clinics")
-      }
+    const coordinates = geoData.features?.[0]?.center
+    console.log("📌 Coordinates:", coordinates)
 
-      const searchData = await searchResponse.json()
+    if (!coordinates) {
+      throw new Error("Location not found")
+    }
 
-      // Map through the search results to extract necessary data
-      const mappedClinics = searchData.results.map((clinic: any) => ({
-        fsq_id: clinic.fsq_id, // Ensure fsq_id is set
+    const [longitude, latitude] = coordinates
+    console.log("📍 Lat/Lng:", { latitude, longitude })
+
+    const categories = selectedCategories.join(",")
+    const radius = 5000
+    const limit = 10
+
+    console.log("🏷️ Categories:", categories)
+
+    // Step 2: Call backend
+    const searchResponse = await fetch(
+      `/api/foursquare?ll=${latitude},${longitude}&categories=${categories}&radius=${radius}&limit=${limit}`
+    )
+
+    console.log("🏥 API response status:", searchResponse.status)
+
+    if (!searchResponse.ok) {
+      throw new Error("Failed to search for clinics")
+    }
+
+    const searchData = await searchResponse.json()
+    console.log("🏥 Raw API data:", searchData)
+    console.log("🔍 searchData.results:", searchData.results)
+
+    // 🔥 THIS is where the crash happens if results is undefined
+    const mappedClinics = (searchData.results || []).map((clinic: any) => {
+      console.log("➡️ Mapping clinic:", clinic)
+
+      return {
+        fsq_id: clinic.fsq_id,
         name: clinic.name,
         location: {
-          address: clinic.location.formatted_address,
-          locality: clinic.location.locality || "",
-          region: clinic.location.region || "",
-          postcode: clinic.location.postcode || "",
-          country: clinic.location.country || "",
-          formatted_address: clinic.location.formatted_address,
-          lat: clinic.geocodes?.main?.latitude, // Extract lat from geocodes.main
-          lng: clinic.geocodes?.main?.longitude, // Extract lng from geocodes.main
+          address: clinic.location?.formatted_address || "",
+          locality: clinic.location?.locality || "",
+          region: clinic.location?.region || "",
+          postcode: clinic.location?.postcode || "",
+          country: clinic.location?.country || "",
+          formatted_address: clinic.location?.formatted_address || "",
+          lat: clinic.latitude,
+          lng: clinic.longitude,
         },
-        categories: clinic.categories.map((category: any) => ({
-          id: category.id, // Ensure categories have the correct structure
+        categories: (clinic.categories || []).map((category: any) => ({
+          id: category.id,
           name: category.name,
         })),
-        tel: clinic.contact?.formatted_phone || "", // Add fallback for phone number
-        website: clinic.url || "", // Add fallback for website
-        rating: clinic.rating || 0, // Add fallback for rating
-      }))
+        tel: clinic.contact?.formatted_phone || "",
+        website: clinic.url || "",
+        rating: clinic.rating || 0,
+      }
+    })
 
-      setClinics(mappedClinics) // Update the state with the mapped clinics
-    } catch (error: any) {
-      setError(error.message)
-      setClinics([]) // Clear the clinics on error
-    } finally {
-      setIsSearching(false)
-    }
+    console.log("✅ Mapped clinics:", mappedClinics)
+    setClinics(mappedClinics)
+
+  } catch (error: any) {
+    console.error("❌ searchOBGYNClinics error:", error)
+    setError(error.message)
+    setClinics([])
+  } finally {
+    setIsSearching(false)
+    console.log("🏁 searchOBGYNClinics finished")
   }
+}
+
+
 
   // Get appointments for the selected date
   const selectedDateStr = format(selectedDate, "yyyy-MM-dd")
