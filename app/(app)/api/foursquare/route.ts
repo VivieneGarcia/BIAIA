@@ -1,33 +1,73 @@
-import { NextResponse } from "next/server";
+import { NextResponse } from "next/server"
 
-export async function POST(req: Request) {
-  try {
-    const { lat, lng, categories } = await req.json();
+export async function GET(req: Request) {
+  const { searchParams } = new URL(req.url)
 
-    if (!lat || !lng) {
-      return NextResponse.json({ error: "Missing coordinates" }, { status: 400 });
-    }
+  const ll = searchParams.get("ll")
+  const categories = searchParams.get("categories") 
+  const radius = searchParams.get("radius") || "5000"
+  const limit = searchParams.get("limit") || "10"
 
-    const key = process.env.FOURSQUARE_KEY!;
+  const apiKey = process.env.FOURSQUARE_API_KEY 
 
-    const url = `https://api.foursquare.com/v3/places/search?ll=${lat},${lng}&categories=${categories}&radius=5000&limit=10`;
-
-    const res = await fetch(url, {
-      headers: { Authorization: `Bearer ${process.env.FOURSQUARE_API_KEY}` },
-      cache: "force-cache", // avoids spamming their servers
-    });
-
-    if (!res.ok) {
-      return NextResponse.json(
-        { error: "Foursquare hit you with a rate-limit or bad key." },
-        { status: res.status }
-      );
-    }
-
-    const data = await res.json();
-    return NextResponse.json(data);
-
-  } catch (err) {
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+  // --- DEBUG LOG 1: Check Key Status ---
+  console.log("--- Foursquare Debug Info ---");
+  console.log(`API Key Status: ${apiKey ? 'Loaded' : 'MISSING'}`);
+  if (apiKey) {
+    console.log(`API Key Length: ${apiKey.length}`); 
+  } else {
+    // If key is missing, return the error immediately
+    return NextResponse.json(
+      { message: "Missing Foursquare API key (Check .env file and server restart)" },
+      { status: 500 }
+    )
   }
+  
+  if (!ll || !categories) {
+      return NextResponse.json(
+          { message: "Missing required parameters: 'll' or 'categories'" },
+          { status: 400 }
+      );
+  }
+  
+  // 🚨 CRITICAL FIX: Prepend 'Bearer ' to the API Key value
+  const authorizationHeader = `Bearer ${apiKey}`;
+  
+  const fsqResponse = await fetch(
+    `https://places-api.foursquare.com/places/search?ll=${ll}&fsq_category_ids=${categories}&radius=${radius}&limit=${limit}`,
+    {
+      headers: {
+        // 🟢 FIXED: Using the Bearer token format
+        Authorization: authorizationHeader, 
+        
+        "X-Places-Api-Version": "2025-06-17",
+        Accept: "application/json",
+      },
+    }
+  );
+
+  const data = await fsqResponse.json().catch(() => ({ 
+      message: "Could not parse JSON response from Foursquare" 
+  }));
+
+  // --- DEBUG LOG 2: Log Response Status and Details ---
+  console.log(`Foursquare API Status: ${fsqResponse.status}`);
+  
+  if (!fsqResponse.ok) {
+    console.error("Foursquare API Error Details:", data);
+    
+    // Check for the known credit/billing issue (the final potential problem)
+    if (data.message && data.message.includes("no API credits remaining")) {
+        return NextResponse.json(data, { status: 403 }); 
+    }
+    
+    // Return the specific Foursquare error
+    return NextResponse.json(data, { status: fsqResponse.status });
+  }
+
+  // --- DEBUG LOG 3: Log Success ---
+  console.log("Foursquare API Success: Data received.");
+  console.log("--- End Foursquare Debug Info ---");
+  
+  return NextResponse.json(data)
 }
